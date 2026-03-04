@@ -1,5 +1,5 @@
 [package]
-name = "building_materials_rs"
+name = "building_materials"
 version = "0.1.0"
 edition = "2024"
 authors = ["Vladimir German <vladimir.german.and@gmail.com>"]
