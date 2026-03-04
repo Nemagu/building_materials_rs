@@ -11,7 +11,6 @@ repository = "https://github.com/Nemagu/building_materials_rs"
 keywords = ["building", "material"]
 categories = ["building"]
 
-
 [features]
 serde = ["dep:serde"]
 
