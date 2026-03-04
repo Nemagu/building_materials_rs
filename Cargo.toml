@@ -10,7 +10,6 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Nemagu/building_materials_rs"
 homepage = "https://github.com/Nemagu/building_materials_rs"
 keywords = ["building", "material"]
-categories = ["building"]
 
 [features]
 serde = ["dep:serde"]
