@@ -1,0 +1,11 @@
+[package]
+name = "building_materials"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+serde = ["dep:serde"]
+
+[dependencies]
+bon = "3.9.0"
+serde = { version = "1", features = ["derive"], optional = true }
