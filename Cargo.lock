@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "building_materials"
+name = "building_materials_rs"
 version = "0.1.0"
 dependencies = [
  "bon",

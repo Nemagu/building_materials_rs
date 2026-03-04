@@ -1,13 +1,28 @@
-use crate::concrete::{Concrete, ConcreteClassForCompression, ConcreteType};
+use crate::concrete::{Concrete, ConcreteClassForAxialTension, ConcreteClassForCompression};
+
+/// Concrete type per SP 63.13330.2018.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum ConcreteType {
+    Heavy,
+    Cellular,
+    Finegrained { fineness_modulus: f64 },
+    Prestressed,
+    Lightweight,
+}
 
 /// Concrete material properties per SP 63.13330.2018.
 pub struct ConcreteBySp63_13330_2018 {
     material: Concrete,
+    concrete_type: ConcreteType,
 }
 
 impl ConcreteBySp63_13330_2018 {
-    pub fn new(material: Concrete) -> Self {
-        Self { material }
+    pub fn new(material: Concrete, concrete_type: ConcreteType) -> Self {
+        Self {
+            material,
+            concrete_type,
+        }
     }
 
     /// Returns the normative axial compressive resistance **Rbn, Rb,ser** (Pa)
@@ -18,7 +33,7 @@ impl ConcreteBySp63_13330_2018 {
     /// Returns `None` if the combination of class and concrete type
     /// is not covered by the standard.
     pub fn normative_axial_compression_resistance(&self) -> Option<f64> {
-        let (hfs, lw, cell) = match self.material.class_for_compression() {
+        let (hfr, lw, cell) = match self.material.class_for_compression() {
             ConcreteClassForCompression::B1_5 => (None, None, Some(1_400_000.0)),
             ConcreteClassForCompression::B2 => (None, None, Some(1_900_000.0)),
             ConcreteClassForCompression::B2_5 => (None, Some(1_900_000.0), Some(2_400_000.0)),
@@ -55,8 +70,12 @@ impl ConcreteBySp63_13330_2018 {
             ConcreteClassForCompression::B100 => (Some(71_000_000.0), None, None),
             _ => return None,
         };
-        match self.material.concrete_type() {
-            ConcreteType::Heavy | ConcreteType::Finegrained | ConcreteType::Prestressed => hfs,
+        match self.concrete_type {
+            ConcreteType::Heavy
+            | ConcreteType::Finegrained {
+                fineness_modulus: _,
+            }
+            | ConcreteType::Prestressed => hfr,
             ConcreteType::Lightweight => lw,
             ConcreteType::Cellular => cell,
         }
@@ -79,18 +98,59 @@ impl ConcreteBySp63_13330_2018 {
         self.calculated_axial_compression_by_second_group()
     }
 
-    /// Returns the calculated axial compressive resistance for first group of load **Rb** (Pa).
+    /// Returns the calculated axial compressive resistance **Rb** (Pa)
+    /// for first group of load.
     ///
-    /// Derived from [`Self::normative_axial_compression_resistance`] divided by
-    /// safety coefficient: 1.3 for heavy/fine-grained/lightweight, 1.5 for cellular concrete.
+    /// Source: SP 63.13330.2018, Table 6.8.
+    ///
+    /// Returns `None` if the combination of class and concrete type
+    /// is not covered by the standard.
     pub fn calculated_axial_compression_by_first_group(&self) -> Option<f64> {
-        let value = match self.normative_axial_compression_resistance() {
-            Some(v) => v,
-            None => return None,
+        let (hfr, lw, cell) = match self.material.class_for_compression() {
+            ConcreteClassForCompression::B1_5 => (None, None, Some(950_000.0)),
+            ConcreteClassForCompression::B2 => (None, None, Some(1_300_000.0)),
+            ConcreteClassForCompression::B2_5 => (None, Some(1_500_000.0), Some(1_600_000.0)),
+            ConcreteClassForCompression::B3_5 => {
+                (Some(2_100_000.0), Some(2_100_000.0), Some(2_200_000.0))
+            }
+            ConcreteClassForCompression::B5 => {
+                (Some(2_800_000.0), Some(2_800_000.0), Some(3_100_000.0))
+            }
+            ConcreteClassForCompression::B7_5 => {
+                (Some(4_500_000.0), Some(4_500_000.0), Some(4_600_000.0))
+            }
+            ConcreteClassForCompression::B10 => {
+                (Some(6_000_000.0), Some(6_000_000.0), Some(6_000_000.0))
+            }
+            ConcreteClassForCompression::B12_5 => {
+                (Some(7_500_000.0), Some(7_500_000.0), Some(7_000_000.0))
+            }
+            ConcreteClassForCompression::B15 => {
+                (Some(8_500_000.0), Some(8_500_000.0), Some(7_700_000.0))
+            }
+            ConcreteClassForCompression::B20 => (Some(11_500_000.0), Some(11_500_000.0), None),
+            ConcreteClassForCompression::B25 => (Some(14_500_000.0), Some(14_500_000.0), None),
+            ConcreteClassForCompression::B30 => (Some(17_000_000.0), Some(17_000_000.0), None),
+            ConcreteClassForCompression::B35 => (Some(19_500_000.0), Some(19_500_000.0), None),
+            ConcreteClassForCompression::B40 => (Some(22_000_000.0), Some(22_000_000.0), None),
+            ConcreteClassForCompression::B45 => (Some(25_000_000.0), None, None),
+            ConcreteClassForCompression::B50 => (Some(27_500_000.0), None, None),
+            ConcreteClassForCompression::B55 => (Some(30_000_000.0), None, None),
+            ConcreteClassForCompression::B60 => (Some(33_000_000.0), None, None),
+            ConcreteClassForCompression::B70 => (Some(37_000_000.0), None, None),
+            ConcreteClassForCompression::B80 => (Some(41_000_000.0), None, None),
+            ConcreteClassForCompression::B90 => (Some(44_000_000.0), None, None),
+            ConcreteClassForCompression::B100 => (Some(47_500_000.0), None, None),
+            _ => return None,
         };
-        match self.material.concrete_type() {
-            ConcreteType::Cellular => Some(value / 1.5),
-            _ => Some(value / 1.3),
+        match self.concrete_type {
+            ConcreteType::Heavy
+            | ConcreteType::Finegrained {
+                fineness_modulus: _,
+            }
+            | ConcreteType::Prestressed => hfr,
+            ConcreteType::Lightweight => lw,
+            ConcreteType::Cellular => cell,
         }
     }
 
@@ -107,7 +167,7 @@ impl ConcreteBySp63_13330_2018 {
     /// Returns `None` if the combination of class and concrete type
     /// is not covered by the standard.
     pub fn normative_axial_tension_resistance(&self) -> Option<f64> {
-        let (hfs, lw, cell) = match self.material.class_for_compression() {
+        let (hfr, lw, cell) = match self.material.class_for_compression() {
             ConcreteClassForCompression::B1_5 => (None, None, Some(220_000.0)),
             ConcreteClassForCompression::B2 => (None, None, Some(260_000.0)),
             ConcreteClassForCompression::B2_5 => (None, Some(290_000.0), Some(310_000.0)),
@@ -140,11 +200,21 @@ impl ConcreteBySp63_13330_2018 {
             ConcreteClassForCompression::B100 => (Some(3_800_000.0), None, None),
             _ => return None,
         };
-        match self.material.concrete_type() {
-            ConcreteType::Heavy | ConcreteType::Finegrained => hfs,
-            ConcreteType::Prestressed => match hfs {
+        match self.concrete_type {
+            ConcreteType::Heavy => hfr,
+            ConcreteType::Finegrained {
+                fineness_modulus: fm,
+            } => {
+                if fm <= 2.0 {
+                    let v = hfr?;
+                    Some(v * 0.8)
+                } else {
+                    hfr
+                }
+            }
+            ConcreteType::Prestressed => match hfr {
                 Some(v) => Some(v * 1.2),
-                None => hfs,
+                None => hfr,
             },
             ConcreteType::Lightweight => lw,
             ConcreteType::Cellular => cell,
@@ -168,26 +238,78 @@ impl ConcreteBySp63_13330_2018 {
         self.calculated_axial_tension_by_second_group()
     }
 
-    /// Returns the calculated axial tensile resistance for first group of load **Rbt** (Pa).
+    /// Returns the calculated axial tension resistance **Rbt** (Pa)
+    /// for first group of load.
     ///
-    /// Derived from [`Self::normative_axial_tension_resistance`] divided by
-    /// safety coefficient: 2.5 for cellular concrete,
-    /// for heavy/fine-grained/lightweight/prestressed concrete the coefficient is 1.3
-    /// when axial tension class is specified, and 1.5 otherwise.
+    /// Source: SP 63.13330.2018, Table 6.8.
+    ///
+    /// Returns `None` if the combination of class and concrete type
+    /// is not covered by the standard.
     pub fn calculated_axial_tension_by_first_group(&self) -> Option<f64> {
-        let value = match self.normative_axial_tension_resistance() {
-            Some(v) => v,
-            None => return None,
+        let (hfr, lw, cell) = match self.material.class_for_compression() {
+            ConcreteClassForCompression::B1_5 => (None, None, Some(90_000.0)),
+            ConcreteClassForCompression::B2 => (None, None, Some(120_000.0)),
+            ConcreteClassForCompression::B2_5 => (None, Some(200_000.0), Some(140_000.0)),
+            ConcreteClassForCompression::B3_5 => {
+                (Some(260_000.0), Some(260_000.0), Some(180_000.0))
+            }
+            ConcreteClassForCompression::B5 => (Some(370_000.0), Some(370_000.0), Some(240_000.0)),
+            ConcreteClassForCompression::B7_5 => {
+                (Some(480_000.0), Some(480_000.0), Some(280_000.0))
+            }
+            ConcreteClassForCompression::B10 => (Some(560_000.0), Some(560_000.0), Some(390_000.0)),
+            ConcreteClassForCompression::B12_5 => {
+                (Some(660_000.0), Some(660_000.0), Some(440_000.0))
+            }
+            ConcreteClassForCompression::B15 => (Some(750_000.0), Some(750_000.0), Some(460_000.0)),
+            ConcreteClassForCompression::B20 => (Some(900_000.0), Some(900_000.0), None),
+            ConcreteClassForCompression::B25 => (Some(1_050_000.0), Some(1_050_000.0), None),
+            ConcreteClassForCompression::B30 => (Some(1_150_000.0), Some(1_150_000.0), None),
+            ConcreteClassForCompression::B35 => (Some(1_300_000.0), Some(1_300_000.0), None),
+            ConcreteClassForCompression::B40 => (Some(1_400_000.0), Some(1_400_000.0), None),
+            ConcreteClassForCompression::B45 => (Some(1_500_000.0), None, None),
+            ConcreteClassForCompression::B50 => (Some(1_600_000.0), None, None),
+            ConcreteClassForCompression::B55 => (Some(1_700_000.0), None, None),
+            ConcreteClassForCompression::B60 => (Some(1_800_000.0), None, None),
+            ConcreteClassForCompression::B70 => (Some(1_900_000.0), None, None),
+            ConcreteClassForCompression::B80 => (Some(2_100_000.0), None, None),
+            ConcreteClassForCompression::B90 => (Some(2_115_000.0), None, None),
+            ConcreteClassForCompression::B100 => (Some(2_200_000.0), None, None),
+            _ => return None,
         };
-        match self.material.concrete_type() {
-            ConcreteType::Cellular => Some(value / 2.5),
-            ConcreteType::Finegrained
-            | ConcreteType::Heavy
-            | ConcreteType::Lightweight
-            | ConcreteType::Prestressed => match self.material.class_for_axial_tension() {
-                Some(c) => Some(value / 1.3),
-                None => Some(value / 1.5),
-            },
+        if let Some(c) = self.material.class_for_axial_tension() {
+            match c {
+                ConcreteClassForAxialTension::B0_8 => return Some(620_000.0),
+                ConcreteClassForAxialTension::B1_2 => return Some(930_000.0),
+                ConcreteClassForAxialTension::B1_6 => return Some(1_250_000.0),
+                ConcreteClassForAxialTension::B2_0 => return Some(1_550_000.0),
+                ConcreteClassForAxialTension::B2_4 => return Some(1_850_000.0),
+                ConcreteClassForAxialTension::B2_8 => return Some(2_150_000.0),
+                ConcreteClassForAxialTension::B3_2 => return Some(2_450_000.0),
+                _ => (),
+            }
+        }
+        match self.concrete_type {
+            ConcreteType::Cellular => cell,
+            ConcreteType::Finegrained {
+                fineness_modulus: fm,
+            } => {
+                if fm <= 2.0 {
+                    let v = hfr?;
+                    Some(v * 0.8)
+                } else {
+                    hfr
+                }
+            }
+            ConcreteType::Heavy => hfr,
+            ConcreteType::Lightweight => lw,
+            ConcreteType::Prestressed => {
+                if let Some(v) = hfr {
+                    Some(v * 1.2)
+                } else {
+                    hfr
+                }
+            }
         }
     }
 
@@ -200,19 +322,15 @@ impl ConcreteBySp63_13330_2018 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::concrete::{
-        Concrete, ConcreteClassForAxialTension, ConcreteClassForCompression, ConcreteType,
-    };
+    use crate::concrete::{Concrete, ConcreteClassForAxialTension, ConcreteClassForCompression};
 
     fn concrete(
         concrete_type: ConcreteType,
         class: ConcreteClassForCompression,
     ) -> ConcreteBySp63_13330_2018 {
         ConcreteBySp63_13330_2018::new(
-            Concrete::builder()
-                .concrete_type(concrete_type)
-                .class_for_compression(class)
-                .build(),
+            Concrete::builder().class_for_compression(class).build(),
+            concrete_type,
         )
     }
 
@@ -223,10 +341,10 @@ mod tests {
     ) -> ConcreteBySp63_13330_2018 {
         ConcreteBySp63_13330_2018::new(
             Concrete::builder()
-                .concrete_type(concrete_type)
                 .class_for_compression(class)
                 .class_for_axial_tension(axial_tension)
                 .build(),
+            concrete_type,
         )
     }
 
@@ -262,11 +380,49 @@ mod tests {
             (Heavy, B110, None),
             (Heavy, B120, None),
             //
-            (Finegrained, B1_5, None),
-            (Finegrained, B3_5, Some(2_700_000.0)),
-            (Finegrained, B25, Some(18_500_000.0)),
-            (Finegrained, B100, Some(71_000_000.0)),
-            (Finegrained, B110, None),
+            // fineness_modulus does not affect compression resistance
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B1_5,
+                None,
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B3_5,
+                Some(2_700_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B25,
+                Some(18_500_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B100,
+                Some(71_000_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B110,
+                None,
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B25,
+                Some(18_500_000.0),
+            ),
             //
             (Prestressed, B1_5, None),
             (Prestressed, B3_5, Some(2_700_000.0)),
@@ -346,55 +502,86 @@ mod tests {
             (Heavy, B1_5, None),
             (Heavy, B2, None),
             (Heavy, B2_5, None),
-            (Heavy, B3_5, Some(2_700_000.0 / 1.3)),
-            (Heavy, B5, Some(3_500_000.0 / 1.3)),
-            (Heavy, B7_5, Some(5_500_000.0 / 1.3)),
-            (Heavy, B10, Some(7_500_000.0 / 1.3)),
-            (Heavy, B12_5, Some(9_500_000.0 / 1.3)),
-            (Heavy, B15, Some(11_000_000.0 / 1.3)),
-            (Heavy, B20, Some(15_000_000.0 / 1.3)),
-            (Heavy, B25, Some(18_500_000.0 / 1.3)),
-            (Heavy, B30, Some(22_000_000.0 / 1.3)),
-            (Heavy, B35, Some(25_500_000.0 / 1.3)),
-            (Heavy, B40, Some(29_000_000.0 / 1.3)),
-            (Heavy, B45, Some(32_000_000.0 / 1.3)),
-            (Heavy, B50, Some(36_000_000.0 / 1.3)),
-            (Heavy, B55, Some(39_500_000.0 / 1.3)),
-            (Heavy, B60, Some(43_000_000.0 / 1.3)),
-            (Heavy, B70, Some(50_000_000.0 / 1.3)),
-            (Heavy, B80, Some(57_000_000.0 / 1.3)),
-            (Heavy, B90, Some(64_000_000.0 / 1.3)),
-            (Heavy, B100, Some(71_000_000.0 / 1.3)),
+            (Heavy, B3_5, Some(2_100_000.0)),
+            (Heavy, B5, Some(2_800_000.0)),
+            (Heavy, B7_5, Some(4_500_000.0)),
+            (Heavy, B10, Some(6_000_000.0)),
+            (Heavy, B12_5, Some(7_500_000.0)),
+            (Heavy, B15, Some(8_500_000.0)),
+            (Heavy, B20, Some(11_500_000.0)),
+            (Heavy, B25, Some(14_500_000.0)),
+            (Heavy, B30, Some(17_000_000.0)),
+            (Heavy, B35, Some(19_500_000.0)),
+            (Heavy, B40, Some(22_000_000.0)),
+            (Heavy, B45, Some(25_000_000.0)),
+            (Heavy, B50, Some(27_500_000.0)),
+            (Heavy, B55, Some(30_000_000.0)),
+            (Heavy, B60, Some(33_000_000.0)),
+            (Heavy, B70, Some(37_000_000.0)),
+            (Heavy, B80, Some(41_000_000.0)),
+            (Heavy, B90, Some(44_000_000.0)),
+            (Heavy, B100, Some(47_500_000.0)),
             (Heavy, B110, None),
             (Heavy, B120, None),
             //
-            (Finegrained, B1_5, None),
-            (Finegrained, B25, Some(18_500_000.0 / 1.3)),
-            (Finegrained, B100, Some(71_000_000.0 / 1.3)),
-            (Finegrained, B110, None),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B1_5,
+                None,
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B25,
+                Some(14_500_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B100,
+                Some(47_500_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B110,
+                None,
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B25,
+                Some(14_500_000.0),
+            ),
             //
             (Prestressed, B1_5, None),
-            (Prestressed, B25, Some(18_500_000.0 / 1.3)),
-            (Prestressed, B100, Some(71_000_000.0 / 1.3)),
+            (Prestressed, B25, Some(14_500_000.0)),
+            (Prestressed, B100, Some(47_500_000.0)),
             (Prestressed, B110, None),
             //
             (Lightweight, B1_5, None),
             (Lightweight, B2, None),
-            (Lightweight, B2_5, Some(1_900_000.0 / 1.3)),
-            (Lightweight, B25, Some(18_500_000.0 / 1.3)),
-            (Lightweight, B40, Some(29_000_000.0 / 1.3)),
+            (Lightweight, B2_5, Some(1_500_000.0)),
+            (Lightweight, B25, Some(14_500_000.0)),
+            (Lightweight, B40, Some(22_000_000.0)),
             (Lightweight, B45, None),
             (Lightweight, B110, None),
             //
-            (Cellular, B1_5, Some(1_400_000.0 / 1.5)),
-            (Cellular, B2, Some(1_900_000.0 / 1.5)),
-            (Cellular, B2_5, Some(2_400_000.0 / 1.5)),
-            (Cellular, B3_5, Some(3_300_000.0 / 1.5)),
-            (Cellular, B5, Some(4_600_000.0 / 1.5)),
-            (Cellular, B7_5, Some(6_900_000.0 / 1.5)),
-            (Cellular, B10, Some(9_000_000.0 / 1.5)),
-            (Cellular, B12_5, Some(10_500_000.0 / 1.5)),
-            (Cellular, B15, Some(11_500_000.0 / 1.5)),
+            (Cellular, B1_5, Some(950_000.0)),
+            (Cellular, B2, Some(1_300_000.0)),
+            (Cellular, B2_5, Some(1_600_000.0)),
+            (Cellular, B3_5, Some(2_200_000.0)),
+            (Cellular, B5, Some(3_100_000.0)),
+            (Cellular, B7_5, Some(4_600_000.0)),
+            (Cellular, B10, Some(6_000_000.0)),
+            (Cellular, B12_5, Some(7_000_000.0)),
+            (Cellular, B15, Some(7_700_000.0)),
             (Cellular, B20, None),
             (Cellular, B25, None),
             (Cellular, B30, None),
@@ -455,11 +642,77 @@ mod tests {
             (Heavy, B110, None),
             (Heavy, B120, None),
             //
-            (Finegrained, B1_5, None),
-            (Finegrained, B3_5, Some(390_000.0)),
-            (Finegrained, B25, Some(1_550_000.0)),
-            (Finegrained, B100, Some(3_800_000.0)),
-            (Finegrained, B110, None),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B1_5,
+                None,
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B3_5,
+                Some(390_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B25,
+                Some(1_550_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B100,
+                Some(3_800_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B110,
+                None,
+            ),
+            //
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B1_5,
+                None,
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B3_5,
+                Some(390_000.0 * 0.8),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B25,
+                Some(1_550_000.0 * 0.8),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B100,
+                Some(3_800_000.0 * 0.8),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B110,
+                None,
+            ),
             //
             (Prestressed, B1_5, None),
             (Prestressed, B2, None),
@@ -556,7 +809,20 @@ mod tests {
         let cases: &[(ConcreteType, ConcreteClassForCompression, Option<f64>)] = &[
             //
             (Heavy, B25, Some(1_550_000.0)),
-            (Finegrained, B25, Some(1_550_000.0)),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B25,
+                Some(1_550_000.0),
+            ),
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B25,
+                Some(1_550_000.0 * 0.8),
+            ),
             (Prestressed, B25, Some(1_550_000.0 * 1.2)),
             (Lightweight, B25, Some(1_550_000.0)),
             (Cellular, B10, Some(890_000.0)),
@@ -591,15 +857,15 @@ mod tests {
             Option<f64>,
         )] = &[
             //
-            (Cellular, B1_5, None, Some(220_000.0 / 2.5)),
-            (Cellular, B2, None, Some(260_000.0 / 2.5)),
-            (Cellular, B2_5, None, Some(310_000.0 / 2.5)),
-            (Cellular, B3_5, None, Some(410_000.0 / 2.5)),
-            (Cellular, B5, None, Some(550_000.0 / 2.5)),
-            (Cellular, B7_5, None, Some(630_000.0 / 2.5)),
-            (Cellular, B10, None, Some(890_000.0 / 2.5)),
-            (Cellular, B12_5, None, Some(1_000_000.0 / 2.5)),
-            (Cellular, B15, None, Some(1_050_000.0 / 2.5)),
+            (Cellular, B1_5, None, Some(90_000.0)),
+            (Cellular, B2, None, Some(120_000.0)),
+            (Cellular, B2_5, None, Some(140_000.0)),
+            (Cellular, B3_5, None, Some(180_000.0)),
+            (Cellular, B5, None, Some(240_000.0)),
+            (Cellular, B7_5, None, Some(280_000.0)),
+            (Cellular, B10, None, Some(390_000.0)),
+            (Cellular, B12_5, None, Some(440_000.0)),
+            (Cellular, B15, None, Some(460_000.0)),
             (Cellular, B20, None, None),
             (Cellular, B25, None, None),
             (Cellular, B30, None, None),
@@ -617,22 +883,54 @@ mod tests {
             (Cellular, B120, None, None),
             //
             (Heavy, B1_5, None, None),
-            (Heavy, B25, None, Some(1_550_000.0 / 1.5)),
-            (Heavy, B100, None, Some(3_800_000.0 / 1.5)),
+            (Heavy, B25, None, Some(1_050_000.0)),
+            (Heavy, B100, None, Some(2_200_000.0)),
             (Heavy, B110, None, None),
-            (Finegrained, B25, None, Some(1_550_000.0 / 1.5)),
-            (Prestressed, B25, None, Some(1_550_000.0 * 1.2 / 1.5)),
-            (Lightweight, B25, None, Some(1_550_000.0 / 1.5)),
+            //
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B25,
+                None,
+                Some(1_050_000.0),
+            ),
+            //
+            (
+                Finegrained {
+                    fineness_modulus: 1.5,
+                },
+                B25,
+                None,
+                Some(1_050_000.0 * 0.8),
+            ),
+            //
+            (Prestressed, B25, None, Some(1_050_000.0 * 1.2)),
+            (Lightweight, B25, None, Some(1_050_000.0)),
             (Lightweight, B45, None, None),
             //
-            (Heavy, B1_5, Some(B2_0), None),
-            (Heavy, B25, Some(B2_0), Some(1_550_000.0 / 1.3)),
-            (Heavy, B100, Some(B2_0), Some(3_800_000.0 / 1.3)),
+            (Heavy, B1_5, Some(B2_0), Some(1_550_000.0)),
+            (Heavy, B25, Some(B2_0), Some(1_550_000.0)),
+            (Heavy, B100, Some(B2_0), Some(1_550_000.0)),
             (Heavy, B110, Some(B2_0), None),
-            (Finegrained, B25, Some(B2_0), Some(1_550_000.0 / 1.3)),
-            (Prestressed, B25, Some(B2_0), Some(1_550_000.0 * 1.2 / 1.3)),
-            (Lightweight, B25, Some(B2_0), Some(1_550_000.0 / 1.3)),
-            (Lightweight, B45, Some(B2_0), None),
+            (
+                Finegrained {
+                    fineness_modulus: 3.0,
+                },
+                B25,
+                Some(B2_0),
+                Some(1_550_000.0),
+            ),
+            (Prestressed, B25, Some(B2_0), Some(1_550_000.0)),
+            (Lightweight, B25, Some(B2_0), Some(1_550_000.0)),
+            (Lightweight, B45, Some(B2_0), Some(1_550_000.0)),
+            //
+            (Heavy, B25, Some(B0_8), Some(620_000.0)),
+            (Heavy, B25, Some(B1_2), Some(930_000.0)),
+            (Heavy, B25, Some(B1_6), Some(1_250_000.0)),
+            (Heavy, B25, Some(B2_4), Some(1_850_000.0)),
+            (Heavy, B25, Some(B2_8), Some(2_150_000.0)),
+            (Heavy, B25, Some(B3_2), Some(2_450_000.0)),
         ];
 
         for (concrete_type, class, axial, expected) in cases {

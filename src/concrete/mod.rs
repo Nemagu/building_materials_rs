@@ -1,7 +1,7 @@
 pub use crate::concrete::property::{
     ConcreteClassForAxialTension, ConcreteClassForCompression, ConcreteClassForFlexuralTension,
     ConcreteGradeForFrostResistanceByFirstMethod, ConcreteGradeForFrostResistanceBySecondMethod,
-    ConcreteGradeForWaterResistance, ConcreteType,
+    ConcreteGradeForWaterResistance, 
 };
 
 pub mod property;
@@ -13,7 +13,6 @@ pub mod property;
 #[derive(Clone, bon::Builder)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Concrete {
-    concrete_type: ConcreteType,
     class_for_compression: ConcreteClassForCompression,
     class_for_axial_tension: Option<ConcreteClassForAxialTension>,
     class_for_flexural_tension: Option<ConcreteClassForFlexuralTension>,
@@ -25,11 +24,6 @@ pub struct Concrete {
 }
 
 impl Concrete {
-    /// Returns the concrete type [`ConcreteType`].
-    pub fn concrete_type(&self) -> ConcreteType {
-        self.concrete_type
-    }
-
     /// Returns the compression class [`ConcreteClassForCompression`].
     pub fn class_for_compression(&self) -> ConcreteClassForCompression {
         self.class_for_compression

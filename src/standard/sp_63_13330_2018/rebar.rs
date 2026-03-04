@@ -98,11 +98,8 @@ impl RebarBySp63_13330_2018 {
     /// Derived from [`Self::normative_tension_resistance`] divided by
     /// safety coefficient 6.13.
     pub fn calculated_tension_resistance_by_first_group(&self) -> Option<f64> {
-        if let Some(normative_value) = self.normative_tension_resistance() {
-            Some(normative_value / 1.15)
-        } else {
-            None
-        }
+        self.normative_tension_resistance()
+            .map(|normative_value| normative_value / 1.15)
     }
 
     /// Alias for [`Self::calculated_tension_resistance_by_first_group`].

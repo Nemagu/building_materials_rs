@@ -1,14 +1,3 @@
-/// Concrete type per GOST 26633-2015.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ConcreteType {
-    Heavy,
-    Cellular,
-    Finegrained,
-    Prestressed,
-    Lightweight,
-}
-
 /// Concrete class for compression per GOST 26633-2015.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

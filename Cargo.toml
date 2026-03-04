@@ -1,7 +1,16 @@
 [package]
-name = "building_materials"
+name = "building_materials_rs"
 version = "0.1.0"
 edition = "2024"
+authors = ["Vladimir German <vladimir.german.and@gmail.com>"]
+rust-version = "1.93"
+description = "Building materials library according to russian standards"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Nemagu/building_materials_rs"
+keywords = ["building", "material"]
+categories = ["building"]
+
 
 [features]
 serde = ["dep:serde"]
