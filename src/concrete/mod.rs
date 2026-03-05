@@ -1,7 +1,7 @@
 pub use crate::concrete::property::{
     ConcreteClassForAxialTension, ConcreteClassForCompression, ConcreteClassForFlexuralTension,
     ConcreteGradeForFrostResistanceByFirstMethod, ConcreteGradeForFrostResistanceBySecondMethod,
-    ConcreteGradeForWaterResistance, 
+    ConcreteGradeForWaterResistance,
 };
 
 pub mod property;
